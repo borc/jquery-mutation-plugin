@@ -12,11 +12,6 @@
 
 ;(function( $, window, document, undefined ) {
 	
-	if ( !$.mutation )
-	{
-		$.mutation = {};
-	}
-	
 	var options = {
 		threshold: 500	
 	};
