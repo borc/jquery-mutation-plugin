@@ -16,38 +16,68 @@
 		threshold: 500	
 	};
 	
-	var methods = {
-		
+	var createStartHandler = function( handler )
+	{
+		var timer = null;
+		return function( e )
+		{
+			if ( timer === null ) handler.call( this, e );
+			window.clearTimeout( timer );
+			timer = window.setTimeout( function()
+			{
+				window.clearTimeout( timer );
+				timer = null;
+			}, options.threshold );
+		};
+	};
+	
+	var createStopHandler = function( handler )
+	{
+		var timer = null;
+		return function( e )
+		{
+			window.clearTimeout( timer );
+			timer = window.setTimeout( function()
+			{
+				window.clearTimeout( timer );
+				timer = null;
+				handler.call( this, e );
+			}, options.threshold );
+		};
+	};
+	
+	var eventError = function( event )
+	{
+		$.error( 'Event jQuery.mutation.' + event + ' does not exist' );
+	};
+	
+	var events = {
+	
 		// Set handler function for mutation start.
 		start: function( handler )
 		{
-			var timer = null;
-			return this.on( 'DOMSubtreeModified.mutation', function( e )
-			{
-				if ( timer === null ) handler.call( this, e );
-				window.clearTimeout( timer );
-				timer = window.setTimeout( function()
-				{
-					window.clearTimeout( timer );
-					timer = null;
-				}, options.threshold );
-			} );
+			return this.on( 'DOMSubtreeModified.mutation.start', createStartHandler( handler ) );
 		},
 		
 		// Set handler function for mutation stop.
 		stop: function( handler )
 		{
-			var timer = null;
-			return this.on( 'DOMSubtreeModified.mutation', function( e )
-			{
-				window.clearTimeout( timer );
-				timer = window.setTimeout( function()
-				{
-					window.clearTimeout( timer );
-					timer = null;
-					handler.call( this, e );
-				}, options.threshold );
-			} );
+			return this.on( 'DOMSubtreeModified.mutation.stop', createStopHandler( handler ) );
+		}
+	};
+	
+	var methods = {
+		
+		// Set handler function for mutation start.
+		start: function( handler )
+		{
+			return events[ 'start' ].apply( this, Array.prototype.slice.call( arguments, 0 ) );
+		},
+		
+		// Set handler function for mutation stop.
+		stop: function( handler )
+		{
+			return events[ 'stop' ].apply( this, Array.prototype.slice.call( arguments, 0 ) );
 		},
 		
 		// Returns true if mutation events are supported by browser
@@ -57,14 +87,46 @@
 			// The interface can either be an object or a function, depending
 			// on the browser.
 			return ( typeof MutationEvent !== 'undefined' );
+		},
+		
+		// Bind an event handler.
+		bind: function( event )
+		{
+			if ( events[ event ] )
+			{
+				return events[ event ].apply( this, Array.prototype.slice.call( arguments, 1 ) );
+			}
+			eventError( event );
+		},
+		
+		// Shortcut for bind()
+		on: function()
+		{
+			return methods[ 'bind' ].apply( this, Array.prototype.slice.call( arguments, 0 ) );
+		},
+		
+		// Unbinds all handlers for an event
+		unbind: function( event )
+		{
+			if ( events[ event ] )
+			{
+				return this.off( 'DOMSubtreeModified.mutation.' + event );
+			}
+			eventError( event );
+		},
+		
+		// Shortcut for unbind()
+		off: function( event )
+		{
+			return methods[ 'unbind' ].apply( this, Array.prototype.slice.call( arguments, 0 ) );
 		}
 	};
 	
-	$.fn.mutation = function( method, handler ) {
+	$.fn.mutation = function( method ) {
 		if ( methods[ method ] )
 		{
-			return methods[ method ].call( this, handler );
+			return methods[ method ].apply( this, Array.prototype.slice.call( arguments, 1 ) );
 		}
-		$.error( 'Method jQuery.mutation.' +  method + ' does not exist' );
+		$.error( 'Method jQuery.mutation.' + method + ' does not exist' );
 	};
 })( jQuery, window, document );
